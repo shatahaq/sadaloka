@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
-import { journeyPhases, journeySteps } from '../data/content'
+import { useData } from '../data'
 import { useI18n } from '../i18n'
 import { Eyebrow } from '../components/ui'
 import { cn } from '../lib/format'
 
 export default function Journey() {
+  const { journeyPhases, journeySteps } = useData()
   const { t, tr } = useI18n()
   const track = useRef(null)
   const [progress, setProgress] = useState(0)

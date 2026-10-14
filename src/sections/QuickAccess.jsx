@@ -1,8 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ArrowUpRight, BadgeCheck } from 'lucide-react'
-import { corridors } from '../data/corridors'
-import { guides } from '../data/guides'
-import { packages } from '../data/packages'
+import { useData } from '../data'
 import { useI18n } from '../i18n'
 import { Eyebrow, Monogram } from '../components/ui'
 
@@ -40,6 +38,7 @@ function GateShell({ to, index, label, title, cta, children, dark = false, visua
 }
 
 export default function QuickAccess() {
+  const { corridors, guides, packages } = useData()
   const { t, dur } = useI18n()
   return (
     <section className="bg-paper py-20 sm:py-28">

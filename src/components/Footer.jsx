@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Check } from 'lucide-react'
-import { corridors } from '../data/corridors'
+import { useData } from '../data'
 import { useI18n } from '../i18n'
 import mark from '../assets/img/logo-mark.webp'
 import wordmarkCream from '../assets/img/logo-wordmark-cream.webp'
 
 export default function Footer() {
+  const { corridors } = useData()
   const { t, tr } = useI18n()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
@@ -31,6 +32,7 @@ export default function Footer() {
         [t('footer.ethics'), '/transparansi#etika'],
         [t('footer.homestay'), '/transparansi#mitra'],
         [t('footer.joinGuide'), '/guide'],
+        [t('footer.guidePortal'), '/portal-pemandu'],
         [t('footer.help'), '/#faq'],
       ],
     },

@@ -1,8 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, BadgeCheck, Clock, Leaf, MapPin, Route, Sun } from 'lucide-react'
-import { corridors, corridorBySlug } from '../data/corridors'
-import { packagesByCorridor } from '../data/packages'
-import { guides } from '../data/guides'
+import { useData } from '../data'
 import { rupiah } from '../lib/format'
 import { useReveal } from '../lib/useReveal'
 import { useI18n } from '../i18n'
@@ -17,6 +15,7 @@ export default function Corridor() {
 }
 
 function CorridorView({ slug }) {
+  const { corridors, corridorBySlug, packagesByCorridor, guides } = useData()
   const { t, tr, coords, drive, zone } = useI18n()
   const ref = useReveal()
   const c = corridorBySlug[slug]
@@ -26,7 +25,8 @@ function CorridorView({ slug }) {
   const prev = corridors[(idx - 1 + corridors.length) % corridors.length]
   const next = corridors[(idx + 1) % corridors.length]
   const pkgs = packagesByCorridor(slug)
-  const crew = guides.filter((g) => g.corridors.includes(slug))
+  // ringkasan; daftar lengkap ada di /guide
+  const crew = guides.filter((g) => g.corridors.includes(slug)).slice(0, 6)
 
   return (
     <div ref={ref}>
@@ -135,16 +135,16 @@ function CorridorView({ slug }) {
                 {crew.map((g) => (
                   <li key={g.id} className="flex flex-col rounded-2xl border border-line-dark p-5">
                     <div className="flex items-center gap-4">
-                      <Monogram name={g.name} tone="dark" />
+                      <Monogram name={g.name} src={g.photo} tone="dark" />
                       <div>
                         <p className="font-medium">{g.name}</p>
                         <p className="text-[13px] text-paper/55">{tr(g.role)}</p>
                       </div>
                     </div>
-                    <p className="mb-5 mt-4 text-[14px] leading-relaxed text-paper/70">{tr(g.bio)}</p>
+                    <p className="mb-5 mt-4 text-[14px] leading-relaxed text-paper/70">{tr(g.bio ?? g.quote)}</p>
                     <p className="mt-auto inline-flex items-center gap-1.5 border-t border-line-dark pt-4 font-mono text-[11px] text-sage-300">
                       <BadgeCheck className="size-3.5" strokeWidth={1.75} />
-                      {g.license}
+                      {g.license ?? g.organization}
                     </p>
                   </li>
                 ))}

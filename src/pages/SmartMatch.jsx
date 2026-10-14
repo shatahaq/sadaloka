@@ -4,13 +4,13 @@ import {
   ArrowLeft, ArrowRight, ArrowUpRight, Backpack, Baby, Check, CircleHelp, Clock, Coins, CookingPot, Gem, Heart,
   Pencil, RotateCcw, Sparkles, Sun, Tent, User, Users, Wallet, Zap,
 } from 'lucide-react'
-import { corridorBySlug } from '../data/corridors'
-import { difficultyLevels, packages } from '../data/packages'
-import { altLabel, experienceOptions, matchPackages } from '../lib/match'
+import { useData } from '../data'
+import { altLabel, experienceImage, experienceOptions, matchPackages } from '../lib/match'
 import { cn, rupiah } from '../lib/format'
 import { useI18n } from '../i18n'
 import PackageCard from '../components/PackageCard'
 import { Button, DifficultyBars, Eyebrow } from '../components/ui'
+import { difficultyLevels } from '../lib/constants'
 
 const WA = 'https://wa.me/6281200000000'
 const QUESTIONS = ['experiences', 'days', 'group', 'fitness', 'budget']
@@ -46,7 +46,7 @@ function ExperienceTile({ option, selected, onClick, title, note }) {
       onClick={onClick}
       className={cn(
         'group relative aspect-[4/5] overflow-hidden rounded-2xl text-left md:aspect-[5/4] transition-[transform,box-shadow] duration-300 ease-[var(--ease-out-expo)]',
-        selected ? 'shadow-[0_0_0_3px_var(--color-paper),0_0_0_5px_var(--color-clay-500)]' : 'hover:-translate-y-1',
+        selected ? 'shadow-[0_0_0_3px_var(--color-forest-950),0_0_0_5px_var(--color-sage-200)]' : 'hover:-translate-y-1',
       )}
     >
       {option.image ? (
@@ -62,7 +62,7 @@ function ExperienceTile({ option, selected, onClick, title, note }) {
       <span
         className={cn(
           'absolute right-3 top-3 grid size-7 place-items-center rounded-full border-2 transition-colors',
-          selected ? 'border-clay-500 bg-clay-500 text-bone' : 'border-paper/80 bg-forest-950/20 text-transparent',
+          selected ? 'border-sage-200 bg-sage-200 text-forest-950' : 'border-paper/80 bg-forest-950/20 text-transparent',
         )}
         aria-hidden
       >
@@ -84,8 +84,8 @@ function Choice({ selected, onClick, icon, title, note }) {
       aria-checked={selected}
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-4 rounded-2xl border bg-bone p-4 text-left transition-[border-color,box-shadow] duration-200 sm:p-5',
-        selected ? 'border-forest-900 shadow-[0_0_0_1px_var(--color-forest-900)]' : 'border-line-strong hover:border-ink/40',
+        'match-choice flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition-[border-color,box-shadow] duration-200 sm:p-5',
+        selected ? 'border-sage-200 shadow-[0_0_0_1px_var(--color-sage-200)]' : 'hover:border-sage-300',
       )}
     >
       <span className={cn('grid size-12 shrink-0 place-items-center rounded-xl transition-colors', selected ? 'bg-forest-900 text-paper' : 'bg-paper-2 text-moss-600')}>
@@ -111,6 +111,7 @@ function Choice({ selected, onClick, icon, title, note }) {
 /* ── Halaman ──────────────────────────────────────────────── */
 
 export default function SmartMatch() {
+  const { corridorBySlug, packages } = useData()
   const { t, tr, dur, lang } = useI18n()
   const m = (k, vars) => t(`match.${k}`, vars)
 
@@ -121,7 +122,7 @@ export default function SmartMatch() {
   const timer = useRef()
   useEffect(() => () => clearTimeout(timer.current), [])
 
-  const results = useMemo(() => matchPackages(answers), [answers])
+  const results = useMemo(() => matchPackages(packages, answers), [packages, answers])
   const toTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
 
   const advance = () => {
@@ -172,7 +173,7 @@ export default function SmartMatch() {
     const q = QUESTIONS[step]
     const n = step + 1
     return (
-      <section className="paper-grain min-h-screen bg-paper pt-[72px]">
+      <section className="smart-trip min-h-screen pt-[72px]">
         <div className={cn('mx-auto w-full max-w-[960px] px-5 pt-8 sm:px-8 sm:pt-12', q === 'experiences' ? 'pb-36' : 'pb-24')}>
           {/* Navigasi & progres */}
           <div className="flex h-9 items-center justify-between gap-4">
@@ -185,7 +186,7 @@ export default function SmartMatch() {
                 <ArrowLeft className="size-4" /> {m('back')}
               </button>
             ) : (
-              <span className="eyebrow text-moss-600">{m('eyebrow')}</span>
+              <span className="eyebrow text-sage-300">{m('eyebrow')}</span>
             )}
             <span className="font-mono text-[12px] tracking-[0.06em] text-muted">
               {editing ? m('editing') : m('qOf', { n, total: QUESTIONS.length })}
@@ -194,21 +195,21 @@ export default function SmartMatch() {
           {!editing && (
             <div className="mt-3 grid grid-cols-5 gap-1.5" aria-hidden>
               {QUESTIONS.map((x, i) => (
-                <span key={x} className={cn('h-1 rounded-full transition-colors duration-500', i <= step ? 'bg-forest-900' : 'bg-line-strong')} />
+                <span key={x} className={cn('h-1 rounded-full transition-colors duration-500', i <= step ? 'bg-sage-200' : 'bg-paper/20')} />
               ))}
             </div>
           )}
 
           <div key={`${step}-${editing}`} className="q-enter mt-10 sm:mt-14">
-            <h1 className="max-w-3xl font-display text-[34px] leading-[1.06] sm:text-[48px]">{m(`q${n}`)}</h1>
-            <p className="mt-3 text-[16px] text-ink-soft">{m(`q${n}h`)}</p>
+            <h1 className="max-w-3xl font-display text-[34px] leading-[1.06] text-paper sm:text-[48px]">{m(`q${n}`)}</h1>
+            <p className="mt-3 text-[16px] text-sage-200">{m(`q${n}h`)}</p>
 
             {q === 'experiences' && (
               <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
                 {experienceOptions.map((o) => (
                   <ExperienceTile
                     key={o.key}
-                    option={o}
+                    option={{ ...o, image: experienceImage(o, corridorBySlug) }}
                     selected={answers.experiences.includes(o.key)}
                     onClick={() => toggleExperience(o.key)}
                     title={m(`exp.${o.key}`)}
@@ -271,10 +272,10 @@ export default function SmartMatch() {
 
         {/* Bar aksi untuk pertanyaan pilihan-ganda */}
         {q === 'experiences' && (
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper/90 backdrop-blur-xl">
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-paper/15 bg-forest-950/90 backdrop-blur-xl">
             <div className="mx-auto flex w-full max-w-[960px] items-center justify-between gap-4 px-5 py-4 sm:px-8">
-              <p className="hidden text-[14px] text-muted sm:block">{m('intro')}</p>
-              <Button variant="primary" size="lg" className="w-full sm:w-auto" onClick={advance} disabled={!answers.experiences.length}>
+              <p className="hidden text-[14px] text-sage-200 sm:block">{m('intro')}</p>
+              <Button variant="light" size="lg" className="w-full sm:w-auto" onClick={advance} disabled={!answers.experiences.length}>
                 {answers.experiences.length ? m('continueN', { n: answers.experiences.length }) : m('next')}
                 <ArrowRight className="size-4" />
               </Button>
@@ -315,13 +316,13 @@ export default function SmartMatch() {
   ]
 
   return (
-    <section className="paper-grain min-h-screen bg-paper pb-24 pt-[72px]">
+    <section className="smart-trip min-h-screen pb-24 pt-[72px]">
       <div className="container-x pt-10 sm:pt-14">
         <div className="q-enter flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
             <Eyebrow>{m('rEyebrow')}</Eyebrow>
-            <h1 className="mt-4 font-display text-[40px] leading-[1.02] sm:text-[56px]">{m('rTitle')}</h1>
-            <p className="mt-3 text-[16px] text-ink-soft">{m('rIntro')}</p>
+            <h1 className="mt-4 font-display text-[40px] leading-[1.02] text-paper sm:text-[56px]">{m('rTitle')}</h1>
+            <p className="mt-3 text-[16px] text-sage-200">{m('rIntro')}</p>
           </div>
           <button type="button" onClick={restart} className="inline-flex items-center gap-2 text-[14px] text-ink-soft hover:text-ink">
             <RotateCcw className="size-4" /> {m('restart')}
@@ -347,7 +348,7 @@ export default function SmartMatch() {
         </div>
 
         {/* Pilihan terbaik */}
-        <article className="q-enter mt-10 grid overflow-hidden rounded-[var(--radius-card)] bg-bone ring-1 ring-line lg:grid-cols-[1.05fr_1fr]" style={{ animationDelay: '80ms' }}>
+        <article className="q-enter mt-10 grid overflow-hidden rounded-[var(--radius-card)] bg-sage-100 ring-1 ring-sage-300 lg:grid-cols-[1.05fr_1fr]" style={{ animationDelay: '80ms' }}>
           <div className="relative min-h-[280px] sm:min-h-[360px]">
             <img src={c.imageSm ?? c.image} alt={tr(c.imageAlt)} className="absolute inset-0 size-full object-cover" />
             <span className="absolute left-4 top-4 rounded-full bg-clay-500 px-3 py-1.5 text-[12.5px] font-medium text-bone">{m('best')}</span>

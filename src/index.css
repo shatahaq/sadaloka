@@ -119,6 +119,19 @@
     );
   }
 
+  /* Smart Trip: ruang fokus berlapis hijau hutan, kontras dari halaman editorial terang. */
+  .smart-trip {
+    background-color: var(--color-forest-950);
+    background-image:
+      radial-gradient(circle at 12% 8%, rgb(111 143 99 / 0.18), transparent 28rem),
+      radial-gradient(circle at 88% 26%, rgb(201 211 189 / 0.08), transparent 32rem);
+    color: var(--color-paper);
+  }
+  .smart-trip .match-choice { background: var(--color-forest-900); border-color: rgb(201 211 189 / 0.25); }
+  .smart-trip .match-choice:hover { background: var(--color-forest-800); }
+  .smart-trip .match-choice .text-muted { color: var(--color-sage-300); }
+  .smart-trip .match-choice .text-ink { color: var(--color-paper); }
+
   .link-underline {
     background-image: linear-gradient(currentColor, currentColor);
     background-size: 0% 1px;

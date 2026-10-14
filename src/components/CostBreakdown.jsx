@@ -1,6 +1,6 @@
-import { breakdownColors } from '../data/packages'
 import { useI18n } from '../i18n'
 import { rupiah, cn } from '../lib/format'
+import { breakdownColors } from '../lib/constants'
 
 /** Bar bertumpuk + legenda: ke mana setiap rupiah pergi. */
 export default function CostBreakdown({ breakdown, total, tone = 'dark', showAmounts = true, className = '' }) {

@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Clock, Leaf, Sun } from 'lucide-react'
-import { corridors, corridorBySlug } from '../data/corridors'
+import { useData } from '../data'
 import { rupiah } from '../lib/format'
 import { useI18n } from '../i18n'
 import CorridorMap from '../components/CorridorMap'
 import { ArrowLink, Eyebrow } from '../components/ui'
 
 export default function Corridors() {
+  const { corridors, corridorBySlug } = useData()
   const { t, tr, coords, drive, zone } = useI18n()
   const [active, setActive] = useState(corridors[0].slug)
   const refs = useRef({})

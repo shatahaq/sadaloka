@@ -1,5 +1,5 @@
 import { MessageCircle } from 'lucide-react'
-import { faqs } from '../data/content'
+import { useData } from '../data'
 import { useI18n } from '../i18n'
 import Accordion from '../components/Accordion'
 import { Button, Eyebrow } from '../components/ui'
@@ -40,6 +40,7 @@ export function Quote() {
 }
 
 export function Faq() {
+  const { faqs } = useData()
   const { t, tr } = useI18n()
   const items = faqs.map((f) => ({ q: tr(f.q), a: tr(f.a) }))
   return (

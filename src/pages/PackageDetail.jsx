@@ -1,10 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BadgeCheck, CalendarDays, Check, Clock, Info, MapPin, MessageCircle, Minus, Plus, ShieldCheck, Users, X } from 'lucide-react'
-import { corridorBySlug } from '../data/corridors'
-import { difficultyLevels, packageBySlug, packages } from '../data/packages'
-import { guides } from '../data/guides'
-import { ethicsRules } from '../data/content'
+import { useData } from '../data'
 import { cn, rupiah, todayISO } from '../lib/format'
 import { useI18n } from '../i18n'
 import CostBreakdown from '../components/CostBreakdown'
@@ -12,6 +9,7 @@ import CorridorMap from '../components/CorridorMap'
 import PackageCard from '../components/PackageCard'
 import NotFound from './NotFound'
 import { Button, DifficultyBars, Monogram } from '../components/ui'
+import { difficultyLevels } from '../lib/constants'
 
 function Section({ id, title, children, className = '' }) {
   return (
@@ -29,6 +27,7 @@ export default function PackageDetail() {
 }
 
 function PackageDetailView({ slug }) {
+  const { corridorBySlug, packageBySlug, packages, ethicsRules } = useData()
   const { t, tr, dur, drive, coords, zone, people } = useI18n()
   const navigate = useNavigate()
   const pkg = packageBySlug[slug]
@@ -42,11 +41,12 @@ function PackageDetailView({ slug }) {
   const c = corridorBySlug[pkg.corridor]
   const level = difficultyLevels[pkg.difficulty]
   const total = pkg.price * pax
-  const crew = guides.filter((g) => g.corridors.includes(pkg.corridor)).slice(0, 3)
   const related = packages
     .filter((p) => p.slug !== pkg.slug && (p.corridor === pkg.corridor || p.interests.some((i) => pkg.interests.includes(i))))
     .slice(0, 3)
+  const g = pkg.guide
   const minPax = pkg.group[0]
+  const lowSlots = pkg.slots != null && pkg.slots <= 3
   const book = () => {
     if (!date) {
       setDateHint(true)
@@ -58,7 +58,7 @@ function PackageDetailView({ slug }) {
   }
 
   const facts = [
-    [Clock, t('detail.factDuration'), dur(pkg.days)],
+    [Clock, t('detail.factDuration'), pkg.durationLabel ?? dur(pkg.days)],
     [null, t('detail.factDifficulty'), t(`difficulty.${pkg.difficulty}`)],
     [Users, t('detail.factGroup'), `${pkg.group[0]}–${people(pkg.group[1])}`],
     [MapPin, t('detail.factMeet'), tr(c.name)],
@@ -84,13 +84,18 @@ function PackageDetailView({ slug }) {
             </div>
             <div className="flex flex-wrap gap-2">
               {pkg.familyFriendly && <span className="rounded-full bg-sage-100 px-3 py-1.5 text-[12.5px] font-medium text-moss-600">{t('common.familyFriendly')}</span>}
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-bone px-3 py-1.5 text-[12.5px] ring-1 ring-line"><BadgeCheck className="size-3.5 text-moss-600" />{t('detail.hpiGuide')}</span>
+              {pkg.tripType && <span className="rounded-full bg-bone px-3 py-1.5 text-[12.5px] ring-1 ring-line">{t(`detail.tripType.${pkg.tripType}`)}</span>}
+              {pkg.operator ? (
+                <span className="rounded-full bg-bone px-3 py-1.5 text-[12.5px] ring-1 ring-line">{t('detail.operator', { name: pkg.operator })}</span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-bone px-3 py-1.5 text-[12.5px] ring-1 ring-line"><BadgeCheck className="size-3.5 text-moss-600" />{t('detail.hpiGuide')}</span>
+              )}
             </div>
           </div>
 
           <div className="mt-8 grid gap-4 lg:grid-cols-[2fr_1fr]">
             <div className="relative overflow-hidden rounded-[var(--radius-card)]">
-              <img src={c.image} alt={tr(c.imageAlt)} className="aspect-[16/10] size-full object-cover lg:aspect-auto lg:max-h-[520px]" />
+              <img src={pkg.image ?? c.image} alt={pkg.image ? tr(pkg.title) : tr(c.imageAlt)} className="aspect-[16/10] size-full object-cover lg:aspect-auto lg:max-h-[520px]" />
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-forest-950/70 to-transparent p-5 sm:p-6">
                 <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-paper/80">{coords(c.coords)} · {t('common.corridor')} {c.numeral}</p>
               </div>
@@ -129,7 +134,7 @@ function PackageDetailView({ slug }) {
                 </li>
               ))}
             </ul>
-            <p className="mt-6 max-w-2xl text-[15.5px] leading-relaxed text-ink-soft">{tr(c.long)}</p>
+            <p className="mt-6 max-w-2xl whitespace-pre-line text-[15.5px] leading-relaxed text-ink-soft">{tr(pkg.about ?? c.long)}</p>
           </Section>
 
           <Section id="itinerary" title={t('detail.itinerary')}>
@@ -144,15 +149,16 @@ function PackageDetailView({ slug }) {
                     onClick={() => setDay(i)}
                     className={cn('rounded-full px-4 py-2 text-[13px] font-medium transition-colors', day === i ? 'bg-forest-900 text-paper' : 'bg-bone ring-1 ring-line hover:ring-ink/30')}
                   >
-                    {t('detail.day', { n: i + 1 })} <span className={cn('ml-1 font-normal', day === i ? 'text-paper/60' : 'text-muted')}>· {tr(d.title)}</span>
+                    {d.label ?? t('detail.day', { n: i + 1 })}
+                    {tr(d.title) && <span className={cn('ml-1 font-normal', day === i ? 'text-paper/60' : 'text-muted')}>· {tr(d.title)}</span>}
                   </button>
                 ))}
               </div>
             )}
             <ol className="relative">
               {pkg.itinerary[day].items.map(([time, text], i, arr) => (
-                <li key={time + tr(text)} className="relative grid grid-cols-[64px_1fr] gap-4 pb-6 last:pb-0">
-                  <span className="pt-0.5 font-mono text-[13px] text-muted">{time}</span>
+                <li key={time + tr(text)} className="relative grid grid-cols-[72px_1fr] gap-4 pb-6 last:pb-0">
+                  <span className="pt-0.5 font-mono text-[12.5px] leading-snug text-muted [overflow-wrap:anywhere]">{time}</span>
                   <div className="relative pl-6">
                     <span className="absolute left-0 top-1.5 size-2.5 rounded-full border-2 border-moss-600 bg-paper" />
                     {i < arr.length - 1 && <span className="absolute left-[4.5px] top-5 h-[calc(100%+0.25rem)] w-px bg-line-strong" />}
@@ -178,17 +184,50 @@ function PackageDetailView({ slug }) {
             </div>
           </Section>
 
+          {(pkg.notes.length > 0 || pkg.preparation.length > 0) && (
+            <Section title={pkg.notes.length ? t('detail.notes') : t('detail.preparation')}>
+              <div className="grid gap-6 sm:grid-cols-2">
+                {pkg.notes.length > 0 && (
+                  <ul className="space-y-2.5">
+                    {pkg.notes.map((x) => (
+                      <li key={tr(x)} className="flex gap-3 text-[15px]"><Info className="mt-0.5 size-4.5 shrink-0 text-muted" />{tr(x)}</li>
+                    ))}
+                  </ul>
+                )}
+                {pkg.preparation.length > 0 && (
+                  <div>
+                    {pkg.notes.length > 0 && <p className="mb-3 font-medium">{t('detail.preparation')}</p>}
+                    <ul className="space-y-2.5">
+                      {pkg.preparation.map((x) => (
+                        <li key={tr(x)} className="flex gap-3 text-[15px] text-ink-soft"><Check className="mt-0.5 size-4.5 shrink-0 text-moss-600" />{tr(x)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </Section>
+          )}
+
           <Section id="biaya" title={t('detail.costTitle')}>
             <div className="rounded-[var(--radius-card)] bg-bone p-6 ring-1 ring-line sm:p-8">
               <div className="mb-6 flex flex-wrap items-baseline justify-between gap-2">
                 <p className="text-[14px] text-ink-soft">{t('detail.costFor', { people: people(pax) })}</p>
                 <p className="text-[22px] font-semibold tracking-tight">{rupiah(total)}</p>
               </div>
-              <CostBreakdown breakdown={pkg.breakdown} total={total} />
-              <p className="mt-6 flex gap-2 border-t border-line pt-5 text-[13px] leading-relaxed text-muted">
-                <Info className="mt-0.5 size-4 shrink-0" />
-                {t('detail.costNote')}
-              </p>
+              {pkg.breakdown ? (
+                <>
+                  <CostBreakdown breakdown={pkg.breakdown} total={total} />
+                  <p className="mt-6 flex gap-2 border-t border-line pt-5 text-[13px] leading-relaxed text-muted">
+                    <Info className="mt-0.5 size-4 shrink-0" />
+                    {t('detail.costNote')}
+                  </p>
+                </>
+              ) : (
+                <p className="flex gap-2 text-[14px] leading-relaxed text-ink-soft">
+                  <Info className="mt-0.5 size-4 shrink-0 text-muted" />
+                  {t('detail.costPending')}
+                </p>
+              )}
             </div>
           </Section>
 
@@ -206,25 +245,21 @@ function PackageDetailView({ slug }) {
             </ul>
           </Section>
 
-          {crew.length > 0 && (
-            <Section title={t('detail.guidesTitle')}>
-              <ul className="divide-y divide-line rounded-[var(--radius-card)] bg-bone ring-1 ring-line">
-                {crew.map((g) => (
-                  <li key={g.id} className="flex items-center gap-4 p-5">
-                    <Monogram name={g.name} />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium">{g.name}</p>
-                      <p className="text-[13px] text-muted">{tr(g.role)} · {t('detail.experience', { n: g.years })}</p>
-                      <p className="mt-1 font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink-soft">{g.languages.join(' · ')}</p>
-                    </div>
-                    <span className="hidden items-center gap-1.5 font-mono text-[11px] text-moss-600 sm:inline-flex">
-                      <BadgeCheck className="size-3.5" strokeWidth={1.75} />
-                      {g.license}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-3 text-[13px] text-muted">{t('detail.guidesNote')}</p>
+          {g && (
+            <Section title={t('detail.guideTitle')}>
+              <div className="flex items-center gap-4 rounded-[var(--radius-card)] bg-bone p-5 ring-1 ring-line">
+                <Monogram name={g.name} src={g.photo} size="lg" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-display text-[22px] leading-tight">{g.name}</p>
+                  <p className="text-[13px] text-muted">{tr(g.role)} · {t('detail.experience', { n: g.years })}</p>
+                  <p className="mt-1 font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink-soft">{g.languages.join(' · ')}</p>
+                </div>
+                <span className="hidden items-center gap-1.5 font-mono text-[11px] text-moss-600 sm:inline-flex">
+                  <BadgeCheck className="size-3.5" strokeWidth={1.75} />
+                  {g.license ?? g.organization}
+                </span>
+              </div>
+              <p className="mt-3 text-[13px] text-muted">{t('detail.guideNote')}</p>
             </Section>
           )}
 
@@ -247,6 +282,7 @@ function PackageDetailView({ slug }) {
           <div className="sticky top-24 rounded-[var(--radius-card)] bg-bone p-6 shadow-[0_24px_48px_-28px_rgb(22_26_20/0.35)] ring-1 ring-line">
             <p className="text-[12px] text-muted">{t('detail.pricePer')}</p>
             <p className="text-[28px] font-semibold tracking-tight">{rupiah(pkg.price)}</p>
+            {pkg.priceNote && <p className="mt-1 text-[12.5px] leading-snug text-muted">{pkg.priceNote}</p>}
 
             <div className="mt-5 overflow-hidden rounded-2xl border border-line-strong">
               <label className={cn('block border-b border-line-strong px-4 py-3 transition-colors', dateHint && !date && 'bg-clay-100')}>
@@ -267,18 +303,27 @@ function PackageDetailView({ slug }) {
 
             <div className="mt-5 space-y-2 text-[14px]">
               <div className="flex justify-between text-ink-soft"><span>{t('detail.times', { price: rupiah(pkg.price), people: people(pax) })}</span><span>{rupiah(total)}</span></div>
-              <div className="flex justify-between text-ink-soft">
-                <span>{t('detail.inclConservation')}</span>
-                <span className="text-clay-600">{rupiah(Math.round((total * pkg.breakdown.conservation) / 100))}</span>
-              </div>
+              {pkg.breakdown && (
+                <div className="flex justify-between text-ink-soft">
+                  <span>{t('detail.inclConservation')}</span>
+                  <span className="text-clay-600">{rupiah(Math.round((total * pkg.breakdown.conservation) / 100))}</span>
+                </div>
+              )}
               <div className="flex justify-between border-t border-line pt-3 text-[16px] font-semibold"><span>{t('detail.total')}</span><span>{rupiah(total)}</span></div>
             </div>
+
+            {g && (
+              <div className="mt-5 flex items-center gap-3 rounded-2xl bg-paper px-4 py-3">
+                <Monogram name={g.name} src={g.photo} size="sm" />
+                <p className="text-[13px] leading-snug"><span className="block text-muted">{t('detail.guidedBy')}</span><span className="font-medium">{g.name}</span></p>
+              </div>
+            )}
 
             <Button variant="primary" size="lg" className="mt-5 w-full" onClick={book}>
               {t('detail.book')}
             </Button>
-            <p className={cn('mt-3 text-center text-[12.5px]', (dateHint && !date) || pkg.slots <= 3 ? 'font-medium text-clay-600' : 'text-muted')}>
-              {dateHint && !date ? t('detail.pickDate') : pkg.slots <= 3 ? t('detail.slotsLeft', { n: pkg.slots }) : t('detail.noPayment')}
+            <p className={cn('mt-3 text-center text-[12.5px]', (dateHint && !date) || lowSlots ? 'font-medium text-clay-600' : 'text-muted')}>
+              {dateHint && !date ? t('detail.pickDate') : lowSlots ? t('detail.slotsLeft', { n: pkg.slots }) : t('detail.noPayment')}
             </p>
 
             <div className="mt-5 flex items-center gap-3 border-t border-line pt-5">

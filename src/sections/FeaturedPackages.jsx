@@ -1,20 +1,24 @@
 import { useRef } from 'react'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
-import { packages, packageBySlug } from '../data/packages'
+import { useData } from '../data'
 import { useI18n } from '../i18n'
 import PackageCard from '../components/PackageCard'
 import { ArrowLink, Eyebrow } from '../components/ui'
 
-const picks = [
-  'bukit-lawang-jungle-trek-harian',
-  'tangkahan-elephant-patrol',
-  'batu-katak-rafflesia-watch',
-  'teroh-teroh-kolam-abadi',
-  'mangrove-susur-muara',
-  'bukit-lawang-trek-rafting-3h2m',
-].map((s) => packageBySlug[s])
+// satu paket per koridor + satu perjalanan panjang
+const pickSlugs = [
+  'bukit-lawang-jungle-river',
+  'tangkahan-wild-harmony-2d1n',
+  'rafflesia-riverland-day-trip',
+  'pelaruga-three-pools-escape',
+  'lubuk-kertang-mangrove-revival',
+  'leuser-wild-five-orangutan-rafflesia-gibbon',
+]
 
 export default function FeaturedPackages() {
+  const { packages, packageBySlug } = useData()
+  // slug yang sudah dihapus dari database dilewati
+  const picks = pickSlugs.map((s) => packageBySlug[s]).filter(Boolean)
   const { t } = useI18n()
   const track = useRef(null)
   const scroll = (dir) => {

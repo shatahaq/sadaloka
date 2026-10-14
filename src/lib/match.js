@@ -1,20 +1,23 @@
-import { packages } from '../data/packages'
-import { corridorBySlug } from '../data/corridors'
-
 /**
  * Pilihan "pengalaman" di Smart Match. Setiap pilihan memetakan ke satu
  * atau lebih kunci minat paket — pengguna memilih bahasa manusia, bukan kategori teknis.
+ * `corridor` = koridor yang fotonya dipakai sebagai gambar pilihan (lihat experienceImage).
  */
 export const experienceOptions = [
-  { key: 'wildlife', interests: ['primata'], image: corridorBySlug['bukit-lawang'].image },
-  { key: 'elephants', interests: ['gajah'], image: corridorBySlug['tangkahan'].image },
-  { key: 'water', interests: ['sungai'], image: corridorBySlug['pelaruga-teroh-teroh'].image },
-  { key: 'forest', interests: ['flora', 'goa'], image: corridorBySlug['batu-katak'].imageSm },
-  { key: 'coast', interests: ['burung'], image: corridorBySlug['mangrove-pesisir'].image },
+  { key: 'wildlife', interests: ['primata'], corridor: 'bukit-lawang' },
+  { key: 'elephants', interests: ['gajah'], corridor: 'tangkahan' },
+  { key: 'water', interests: ['sungai'], corridor: 'pelaruga-teroh-teroh' },
+  { key: 'forest', interests: ['flora', 'goa'], corridor: 'batu-katak' },
+  { key: 'coast', interests: ['burung'], corridor: 'mangrove-pesisir' },
   { key: 'culture', interests: ['budaya', 'kuliner'] },
   { key: 'thrill', interests: ['petualangan'] },
 ]
 const expByKey = Object.fromEntries(experienceOptions.map((o) => [o.key, o]))
+
+export const experienceImage = (option, corridorBySlug) => {
+  const c = corridorBySlug[option.corridor]
+  return c ? c.imageSm ?? c.image : undefined
+}
 
 export const budgetOptions = {
   low: 300000,
@@ -79,7 +82,7 @@ export function scorePackage(pkg, a) {
   return { pkg, score: Math.max(0, Math.min(100, score)), reasons }
 }
 
-export function matchPackages(answers, limit = 3) {
+export function matchPackages(packages, answers, limit = 3) {
   return packages
     .map((p) => scorePackage(p, answers))
     .sort((x, y) => y.score - x.score || x.pkg.price - y.pkg.price)

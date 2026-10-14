@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { ArrowUpRight, ChevronDown, Menu, X } from 'lucide-react'
-import { corridors } from '../data/corridors'
+import { ArrowUpRight, ChevronDown, ClipboardList, LayoutDashboard, LogOut, Menu, UserRound, X } from 'lucide-react'
+import { useData } from '../data'
 import { rupiah, cn } from '../lib/format'
 import { useI18n } from '../i18n'
-import { Button, LangSwitch, Logo } from './ui'
+import { useAuth } from '../lib/auth'
+import { Button, LangSwitch, Logo, Monogram } from './ui'
 
 const links = [
   { to: '/paket', key: 'nav.packages' },
@@ -13,12 +14,79 @@ const links = [
   { to: '/transparansi', key: 'nav.transparency' },
 ]
 
+/** Tombol akun di header: menu kecil berisi nama, "Perjalanan saya", dan "Keluar". */
+function AccountMenu({ light, onLogout }) {
+  const { user, guideId, isAdmin } = useAuth()
+  const { t } = useI18n()
+  const { pathname } = useLocation()
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => setOpen(false), [pathname])
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e) => !ref.current?.contains(e.target) && setOpen(false)
+    const onKey = (e) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-label={t('nav.account')}
+        className={cn('flex items-center gap-1 rounded-full p-0.5 pr-2 transition-colors', light ? 'hover:bg-paper/10' : 'hover:bg-ink/5')}
+      >
+        <Monogram name={user.name} size="sm" />
+        <ChevronDown className={cn('size-3.5 transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-64 overflow-hidden rounded-2xl bg-paper text-ink shadow-[0_24px_48px_-20px_rgb(22_26_20/0.35)] ring-1 ring-line">
+          <div className="border-b border-line px-4 py-3">
+            <p className="truncate font-medium">{user.name}</p>
+            <p className="truncate text-[12.5px] text-muted">{user.email}</p>
+          </div>
+          <Link to="/akun" className="flex items-center gap-2.5 px-4 py-3 text-[14px] hover:bg-ink/[0.04]">
+            <UserRound className="size-4 text-muted" />{t('nav.myTrips')}
+          </Link>
+          {isAdmin && (
+            <Link to="/admin" className="flex items-center gap-2.5 border-t border-line px-4 py-3 text-[14px] hover:bg-ink/[0.04]">
+              <LayoutDashboard className="size-4 text-muted" />{t('nav.admin')}
+            </Link>
+          )}
+          {guideId && (
+            <Link to="/portal-pemandu" className="flex items-center gap-2.5 border-t border-line px-4 py-3 text-[14px] hover:bg-ink/[0.04]">
+              <ClipboardList className="size-4 text-muted" />{t('nav.guidePortal')}
+            </Link>
+          )}
+          <button type="button" onClick={onLogout} className="flex w-full items-center gap-2.5 border-t border-line px-4 py-3 text-left text-[14px] text-clay-600 hover:bg-ink/[0.04]">
+            <LogOut className="size-4" />{t('nav.logout')}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** Halaman dengan hero foto gelap di bagian atas → header transparan + teks terang */
 const DARK_HERO = [/^\/$/, /^\/koridor\//]
 
 export default function Header() {
+  const { corridors } = useData()
   const { t, tr } = useI18n()
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
+  const { user, guideId, isAdmin, logout: handleLogout } = useAuth()
+  // di area portal pemandu, tombol "Masuk" membuka halaman masuk khusus pemandu
+  const loginBase = pathname.startsWith('/portal-pemandu') ? '/portal-pemandu/masuk' : '/masuk'
+  const onAuthPage = /^\/(portal-pemandu\/)?(masuk|daftar)$/.test(pathname)
+  const loginTo = onAuthPage ? loginBase : `${loginBase}?${new URLSearchParams({ next: pathname + search })}`
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [megaOpen, setMegaOpen] = useState(false)
@@ -101,6 +169,13 @@ export default function Header() {
           <Button to="/smart-match" variant={light ? 'light' : 'dark'} size="sm" className="max-sm:hidden">
             {t('nav.planTrip')}
           </Button>
+          {user ? (
+            <span className="max-sm:hidden"><AccountMenu light={light} onLogout={handleLogout} /></span>
+          ) : (
+            <Button to={loginTo} variant={light ? 'outline-light' : 'outline'} size="sm" className="max-sm:hidden">
+              {t('nav.login')}
+            </Button>
+          )}
           <button
             type="button"
             className={cn('grid size-10 place-items-center rounded-full lg:hidden', light ? 'hover:bg-paper/10' : 'hover:bg-ink/5')}
@@ -195,7 +270,28 @@ export default function Header() {
               </li>
             ))}
           </ul>
-          <Button to="/smart-match" variant="primary" size="lg" className="mt-8 w-full">
+          <div className="mt-8 rounded-2xl border border-line bg-bone p-4">
+            {user ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <Monogram name={user.name} size="sm" />
+                  <Link to="/akun" className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{user.name}</span>
+                    <span className="text-[13px] text-muted underline underline-offset-4">{t('nav.myTrips')}</span>
+                  </Link>
+                  <Button variant="ghost" size="sm" onClick={handleLogout}><LogOut className="size-4" />{t('nav.logout')}</Button>
+                </div>
+                {isAdmin && <Button to="/admin" variant="dark" className="mt-3 w-full"><LayoutDashboard className="size-4" />{t('nav.admin')}</Button>}
+                {guideId && <Button to="/portal-pemandu" variant="dark" className="mt-3 w-full"><ClipboardList className="size-4" />{t('nav.guidePortal')}</Button>}
+              </>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Button to={loginTo} variant="outline">{t('nav.login')}</Button>
+                <Button to="/daftar" variant="dark">{t('nav.register')}</Button>
+              </div>
+            )}
+          </div>
+          <Button to="/smart-match" variant="primary" size="lg" className="mt-4 w-full">
             {t('nav.planTrip')}
           </Button>
         </div>

@@ -1,15 +1,16 @@
 import { Link } from 'react-router-dom'
 import { Clock, Users } from 'lucide-react'
-import { corridorBySlug } from '../data/corridors'
-import { difficultyLevels } from '../data/packages'
+import { useData } from '../data'
 import { rupiah, cn } from '../lib/format'
 import { useI18n } from '../i18n'
 import { DifficultyBars } from './ui'
+import { difficultyLevels } from '../lib/constants'
 
 export default function PackageCard({ pkg, className = '', badge }) {
+  const { corridorBySlug } = useData()
   const { t, tr, dur } = useI18n()
   const c = corridorBySlug[pkg.corridor]
-  const low = pkg.slots <= 3
+  const low = pkg.slots != null && pkg.slots <= 3
 
   return (
     <Link
@@ -18,8 +19,8 @@ export default function PackageCard({ pkg, className = '', badge }) {
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-paper-2">
         <img
-          src={c.imageSm ?? c.image}
-          alt={tr(c.imageAlt)}
+          src={pkg.image ?? c.imageSm ?? c.image}
+          alt={pkg.image ? tr(pkg.title) : tr(c.imageAlt)}
           loading="lazy"
           className="size-full object-cover transition-transform duration-[900ms] ease-[var(--ease-out-expo)] group-hover:scale-[1.04]"
         />
@@ -55,9 +56,13 @@ export default function PackageCard({ pkg, className = '', badge }) {
               <span className="text-[12px] font-normal text-muted"> {t('common.perPerson')}</span>
             </p>
           </div>
-          <p className={cn('text-right text-[12px]', low ? 'font-medium text-clay-600' : 'text-muted')}>
-            {low ? t('common.slotsLeft', { n: pkg.slots }) : t('common.slotsWeek', { n: pkg.slots })}
-          </p>
+          {pkg.slots != null ? (
+            <p className={cn('text-right text-[12px]', low ? 'font-medium text-clay-600' : 'text-muted')}>
+              {low ? t('common.slotsLeft', { n: pkg.slots }) : t('common.slotsWeek', { n: pkg.slots })}
+            </p>
+          ) : (
+            pkg.tripType && <p className="text-right text-[12px] text-muted">{t(`detail.tripType.${pkg.tripType}`)}</p>
+          )}
         </div>
       </div>
     </Link>

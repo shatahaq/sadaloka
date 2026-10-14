@@ -1,18 +1,18 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CalendarDays, SlidersHorizontal, Sparkles, Users, X } from 'lucide-react'
-import { corridors, corridorBySlug } from '../data/corridors'
-import { difficultyLevels, interestKeys, packages } from '../data/packages'
+import { useData } from '../data'
 import { cn, rupiah } from '../lib/format'
 import { useI18n } from '../i18n'
 import PageHeader from '../components/PageHeader'
 import PackageCard from '../components/PackageCard'
 import { Button, Chip, DifficultyBars } from '../components/ui'
+import { difficultyLevels, interestKeys } from '../lib/constants'
 
 const MAX_PRICE = 2500000
 const durations = [1, 2, 3]
 const sorts = {
-  rec: { key: 'catalog.sortRec', fn: (a, b) => a.slots - b.slots },
+  rec: { key: 'catalog.sortRec', fn: (a, b) => (a.slots ?? Infinity) - (b.slots ?? Infinity) },
   cheap: { key: 'catalog.sortCheap', fn: (a, b) => a.price - b.price },
   pricey: { key: 'catalog.sortPricey', fn: (a, b) => b.price - a.price },
   short: { key: 'catalog.sortShort', fn: (a, b) => a.days - b.days || a.price - b.price },
@@ -28,6 +28,7 @@ function FilterGroup({ title, children }) {
 }
 
 export default function Packages() {
+  const { corridors, corridorBySlug, packages } = useData()
   const { t, tr, dur, fmtDate, people } = useI18n()
   const [params, setParams] = useSearchParams()
   const corridorSel = params.get('koridor') ? params.get('koridor').split(',') : []
@@ -55,13 +56,13 @@ export default function Packages() {
       packages
         .filter((p) => !corridorSel.length || corridorSel.includes(p.corridor))
         .filter((p) => !days.length || days.includes(Math.min(p.days, 3)))
-        .filter((p) => p.price <= maxPrice)
+        .filter((p) => maxPrice >= MAX_PRICE || p.price <= maxPrice)
         .filter((p) => !difficulty.length || difficulty.includes(p.difficulty))
         .filter((p) => !interests.length || interests.some((i) => p.interests.includes(i)))
         .filter((p) => !family || p.familyFriendly)
         .sort(sorts[sort].fn),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [corridorSel.join(), days, maxPrice, difficulty, interests, family, sort],
+    [packages, corridorSel.join(), days, maxPrice, difficulty, interests, family, sort],
   )
 
   const activeChips = [

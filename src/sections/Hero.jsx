@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CalendarDays, MapPin, Minus, Plus, Search, Users } from 'lucide-react'
-import { corridors } from '../data/corridors'
+import { useData } from '../data'
 import { todayISO } from '../lib/format'
 import { useI18n } from '../i18n'
 import heroImg from '../assets/img/batu-katak.webp'
 
 export default function Hero() {
+  const { corridors } = useData()
   const { t, tr, people } = useI18n()
   const navigate = useNavigate()
   const [corridor, setCorridor] = useState('')

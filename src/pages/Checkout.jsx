@@ -1,13 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, BadgeCheck, Building2, CalendarDays, Check, CreditCard, Lock, QrCode, Users } from 'lucide-react'
-import { packageBySlug } from '../data/packages'
-import { corridorBySlug } from '../data/corridors'
-import { guides } from '../data/guides'
-import { ethicsRules } from '../data/content'
+import { useData } from '../data'
 import { cn, rupiah, todayISO } from '../lib/format'
 import { useI18n } from '../i18n'
+import { useAuth } from '../lib/auth'
+import { createBooking, serverMessage } from '../data/bookings'
 import { Button, Monogram } from '../components/ui'
+import TripTimeline from '../components/TripTimeline'
 import NotFound from './NotFound'
 
 function Field({ label, error, children, className = '' }) {
@@ -22,6 +22,8 @@ function Field({ label, error, children, className = '' }) {
 const inputCls = 'mt-1.5 h-12 w-full rounded-xl border border-line-strong bg-bone px-4 text-[15px] focus:border-forest-900 focus:outline-none'
 
 export default function Checkout() {
+  const { packageBySlug, corridorBySlug, guideById, ethicsRules } = useData()
+  const { user } = useAuth()
   const { t, tr, dur, fmtDate, people } = useI18n()
   const k = (key, vars) => t(`checkout.${key}`, vars)
   const { slug } = useParams()
@@ -31,18 +33,22 @@ export default function Checkout() {
   const [step, setStep] = useState(1)
   const [date, setDate] = useState(params.get('tanggal') || '')
   const [pax, setPax] = useState(Math.max(pkg?.group[0] ?? 1, +params.get('peserta') || 2))
-  const [form, setForm] = useState({ name: '', email: '', phone: '', notes: '' })
+  const [form, setForm] = useState({ name: user.name, email: user.email, phone: user.phone, notes: '' })
   const [pickup, setPickup] = useState(false)
   const [photo, setPhoto] = useState(false)
-  const [guide, setGuide] = useState('auto')
   const [pay, setPay] = useState('qris')
   const [agree, setAgree] = useState(false)
   const [errors, setErrors] = useState({})
-  const code = useMemo(() => `SDL-${Math.random().toString(36).slice(2, 7).toUpperCase()}`, [])
+  const [booking, setBooking] = useState(null) // pesanan dari server (kode & total resmi)
+  const [submitting, setSubmitting] = useState(false)
 
   if (!pkg) return <NotFound />
   const c = corridorBySlug[pkg.corridor]
-  const crew = guides.filter((g) => g.corridors.includes(pkg.corridor) && g.available)
+  // Pemandu: lewat halaman pemandu (?pemandu=) wisatawan sudah memilih sendiri;
+  // lewat halaman paket, pemandunya tetap = pemandu yang ditugaskan untuk paket ini.
+  const picked = guideById[params.get('pemandu')]
+  const chosen = picked?.available && picked.corridors.includes(pkg.corridor) ? picked : null
+  const guide = chosen ?? pkg.guide
 
   const payments = [
     { v: 'qris', label: 'QRIS', note: k('qrisNote'), Icon: QrCode },
@@ -56,7 +62,7 @@ export default function Checkout() {
   const photoCost = photo ? 150000 : 0
   const total = base + pickupCost + photoCost
 
-  const next = () => {
+  const next = async () => {
     if (step === 1) {
       const e = {}
       if (!date) e.date = k('errDate')
@@ -70,6 +76,21 @@ export default function Checkout() {
       setErrors({ agree: k('errAgree') })
       return
     }
+    if (step === 2) {
+      setSubmitting(true)
+      setErrors({})
+      try {
+        setBooking(
+          await createBooking({ slug: pkg.slug, guideId: chosen?.id, date, pax, name: form.name, email: form.email, phone: form.phone, notes: form.notes, pickup, photo }),
+        )
+      } catch (err) {
+        // pesan dari validasi server (mis. pemandu baru saja penuh), atau pesan umum bila gangguan jaringan
+        setErrors({ submit: serverMessage(err, k('errSubmit')) })
+        return
+      } finally {
+        setSubmitting(false)
+      }
+    }
     setErrors({})
     setStep((s) => s + 1)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -80,27 +101,22 @@ export default function Checkout() {
       <section className="paper-grain min-h-screen bg-paper pb-20 pt-[72px]">
         <div className="container-x max-w-3xl pt-14 text-center">
           <span className="mx-auto grid size-16 place-items-center rounded-full bg-moss-600 text-paper"><Check className="size-8" /></span>
-          <p className="mt-6 font-mono text-[12px] tracking-[0.16em] text-muted">{k('code')} · {code}</p>
+          <p className="mt-6 font-mono text-[12px] tracking-[0.16em] text-muted">{k('code')} · {booking.code}</p>
           <h1 className="mt-3 font-display text-[44px] leading-[1.02] sm:text-6xl">{k('thanks', { name: form.name.split(' ')[0] })}</h1>
           <p className="mx-auto mt-4 max-w-lg text-[16px] text-ink-soft">
             {k('confirm', { title: tr(pkg.title), people: people(pax), date: fmtDate(date), corridor: tr(c.name) })}
           </p>
+          {guide && (
+            <div className="mx-auto mt-6 inline-flex items-center gap-3 rounded-full bg-bone py-2 pl-2 pr-5 text-left ring-1 ring-line">
+              <Monogram name={guide.name} src={guide.photo} size="sm" />
+              <span className="text-[13.5px]"><span className="block text-muted">{t('detail.guidedBy')}</span><span className="font-medium">{guide.name}</span></span>
+            </div>
+          )}
         </div>
         <div className="container-x mt-12 max-w-3xl">
-          <ol className="rounded-[var(--radius-card)] bg-bone p-6 text-left ring-1 ring-line sm:p-8">
-            {[1, 2, 3, 4].map((n, i, arr) => (
-              <li key={n} className="relative grid grid-cols-[28px_1fr] gap-4 pb-6 last:pb-0">
-                <span className={cn('relative z-10 grid size-7 place-items-center rounded-full font-mono text-[11px]', i === 0 ? 'bg-clay-500 text-bone' : 'bg-paper-2')}>{n}</span>
-                {i < arr.length - 1 && <span className="absolute left-[13.5px] top-7 h-full w-px bg-line-strong" />}
-                <div>
-                  <p className="font-medium">{k(`n${n}t`)}</p>
-                  <p className="mt-0.5 text-[14px] text-ink-soft">{k(`n${n}d`, { place: tr(pkg.meetingPoint) })}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
+          <TripTimeline booking={booking} guideName={guide?.name} place={tr(pkg.meetingPoint)} />
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Button to="/" variant="dark">{k('home')}</Button>
+            <Button to={`/akun/pesanan/${booking.code}`} variant="dark">{k('myTrips')}</Button>
             <Button to={`/koridor/${c.slug}`} variant="outline">{k('learn', { name: tr(c.name) })}</Button>
           </div>
           <p className="mt-6 text-center text-[12px] text-muted">{k('prototype')}</p>
@@ -167,24 +183,26 @@ export default function Checkout() {
                   </div>
                 </div>
 
-                <div className="rounded-[var(--radius-card)] bg-bone p-6 ring-1 ring-line sm:p-8">
-                  <h2 className="font-display text-[22px]">{k('chooseGuide')}</h2>
-                  <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                    <button type="button" onClick={() => setGuide('auto')} className={cn('flex items-center gap-3 rounded-2xl border p-4 text-left', guide === 'auto' ? 'border-forest-900 bg-paper' : 'border-line-strong')}>
-                      <span className="grid size-10 place-items-center rounded-full bg-paper-2 ring-1 ring-line-strong"><BadgeCheck className="size-5 text-moss-600" strokeWidth={1.75} /></span>
-                      <span><span className="block font-medium">{k('auto')}</span><span className="text-[12.5px] text-muted">{k('autoNote')}</span></span>
-                    </button>
-                    {crew.map((g) => (
-                      <button key={g.id} type="button" onClick={() => setGuide(g.id)} className={cn('flex items-center gap-3 rounded-2xl border p-4 text-left', guide === g.id ? 'border-forest-900 bg-paper' : 'border-line-strong')}>
-                        <Monogram name={g.name} size="sm" />
-                        <span>
-                          <span className="block font-medium">{g.name}</span>
-                          <span className="font-mono text-[11.5px] uppercase text-muted">{g.years} {t('guides.yearsShort')} · {g.languages.join(' · ')}</span>
-                        </span>
-                      </button>
-                    ))}
+                {guide && (
+                  <div className="rounded-[var(--radius-card)] bg-bone p-6 ring-1 ring-line sm:p-8">
+                    <h2 className="font-display text-[22px]">{k('guideTitle')}</h2>
+                    <div className="mt-5 flex items-center gap-4">
+                      <Monogram name={guide.name} src={guide.photo} />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{guide.name}</p>
+                        <p className="font-mono text-[11.5px] uppercase text-muted">{guide.years} {t('guides.yearsShort')} · {guide.languages.join(' · ')}</p>
+                      </div>
+                      <BadgeCheck className="size-5 shrink-0 text-moss-600" strokeWidth={1.75} />
+                    </div>
+                    <p className="mt-4 text-[13px] text-muted">
+                      {chosen ? (
+                        <>{k('guideChosen')} <Link to={`/guide?pemandu=${chosen.id}`} className="font-medium text-ink underline underline-offset-4">{k('changePackage')}</Link></>
+                      ) : (
+                        k('guideAssigned')
+                      )}
+                    </p>
                   </div>
-                </div>
+                )}
 
                 <div className="rounded-[var(--radius-card)] bg-bone p-6 ring-1 ring-line sm:p-8">
                   <h2 className="font-display text-[22px]">{k('extras')}</h2>
@@ -233,10 +251,11 @@ export default function Checkout() {
               </>
             )}
 
+            {errors.submit && <p role="alert" className="rounded-xl bg-clay-100 px-4 py-3 text-[13.5px] text-clay-600">{errors.submit}</p>}
             <div className="flex items-center justify-between">
-              {step > 1 ? <Button variant="ghost" onClick={() => setStep(step - 1)}><ArrowLeft className="size-4" /> {t('match.back')}</Button> : <span />}
-              <Button variant="primary" size="lg" onClick={next}>
-                {step === 1 ? k('continue') : <><Lock className="size-4" /> {k('pay', { total: rupiah(total) })}</>}
+              {step > 1 ? <Button variant="ghost" onClick={() => setStep(step - 1)} disabled={submitting}><ArrowLeft className="size-4" /> {t('match.back')}</Button> : <span />}
+              <Button variant="primary" size="lg" onClick={next} disabled={submitting}>
+                {step === 1 ? k('continue') : <><Lock className="size-4" /> {k(submitting ? 'sending' : 'pay', { total: rupiah(total) })}</>}
               </Button>
             </div>
           </div>
@@ -244,7 +263,7 @@ export default function Checkout() {
           {/* Ringkasan */}
           <aside className="lg:sticky lg:top-24 lg:self-start">
             <div className="overflow-hidden rounded-[var(--radius-card)] bg-bone ring-1 ring-line">
-              <img src={c.imageSm ?? c.image} alt="" className="h-40 w-full object-cover" />
+              <img src={pkg.image ?? c.imageSm ?? c.image} alt="" className="h-40 w-full object-cover" />
               <div className="p-6">
                 <p className="text-[12px] text-muted">{t('common.corridor')} {c.numeral} · {tr(c.name)}</p>
                 <p className="mt-1 font-display text-[22px] leading-tight">{tr(pkg.title)}</p>
@@ -256,7 +275,7 @@ export default function Checkout() {
                   <div className="flex justify-between"><dt className="text-ink-soft">{rupiah(pkg.price)} × {pax}</dt><dd>{rupiah(base)}</dd></div>
                   {pickup && <div className="flex justify-between"><dt className="text-ink-soft">{k('transfer', { n: cars })}</dt><dd>{rupiah(pickupCost)}</dd></div>}
                   {photo && <div className="flex justify-between"><dt className="text-ink-soft">{k('photoShort')}</dt><dd>{rupiah(photoCost)}</dd></div>}
-                  <div className="flex justify-between text-[13px]"><dt className="text-ink-soft">{k('inside')}</dt><dd className="text-clay-600">{rupiah(Math.round((base * pkg.breakdown.conservation) / 100))}</dd></div>
+                  {pkg.breakdown && <div className="flex justify-between text-[13px]"><dt className="text-ink-soft">{k('inside')}</dt><dd className="text-clay-600">{rupiah(Math.round((base * pkg.breakdown.conservation) / 100))}</dd></div>}
                   <div className="flex justify-between border-t border-line pt-3 text-[17px] font-semibold"><dt>{k('total')}</dt><dd>{rupiah(total)}</dd></div>
                 </dl>
                 <p className="mt-4 text-[12.5px] text-muted">{k('cancel')}</p>

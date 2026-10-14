@@ -1,15 +1,16 @@
 import { Link } from 'react-router-dom'
 import { ArrowUpRight, Check, HandHeart, Receipt, ShieldCheck, Trees } from 'lucide-react'
-import { pillars, safetyChecks } from '../data/content'
-import { packageBySlug } from '../data/packages'
+import { useData } from '../data'
 import { useI18n } from '../i18n'
 import CostBreakdown from '../components/CostBreakdown'
 import { Eyebrow } from '../components/ui'
 
 const icons = { ethics: Trees, community: HandHeart, transparency: Receipt, safety: ShieldCheck }
-const sample = packageBySlug['bukit-lawang-jungle-trek-harian']
 
 export default function WhySadaloka() {
+  const { pillars, safetyChecks, packages } = useData()
+  // contoh rincian biaya hanya tampil bila ada paket yang rinciannya sudah dikonfirmasi
+  const sample = packages.find((p) => p.breakdown)
   const { t, tr } = useI18n()
   return (
     <section className="paper-grain bg-paper-2 py-20 sm:py-28">
@@ -46,7 +47,7 @@ export default function WhySadaloka() {
                 <h3 className="mt-7 font-display text-[28px] leading-tight">{tr(p.title)}</h3>
                 <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">{tr(p.text)}</p>
 
-                {p.key === 'transparency' && (
+                {p.key === 'transparency' && sample && (
                   <div className="mt-6 rounded-2xl bg-paper p-5">
                     <p className="mb-3 text-[12px] text-muted">{t('why.example', { title: tr(sample.title) })}</p>
                     <CostBreakdown breakdown={sample.breakdown} total={sample.price} />

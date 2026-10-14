@@ -1,11 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowUpRight, BadgeCheck, Check, Languages, Search, X } from 'lucide-react'
-import { guides, allLanguages } from '../data/guides'
-import { corridors, corridorBySlug } from '../data/corridors'
-import { cn } from '../lib/format'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { ArrowUpRight, BadgeCheck, Check, Languages, Search, Star, X } from 'lucide-react'
+import { useData } from '../data'
+import { cn, rupiah } from '../lib/format'
 import { useI18n } from '../i18n'
 import PageHeader from '../components/PageHeader'
 import { Button, Chip, Monogram } from '../components/ui'
+
+/** Semua varian bahasa dari nilai i18n, untuk pencarian */
+const allText = (v) => (v == null ? [] : typeof v === 'string' ? [v] : [v.id, v.en])
+
+/** ★ 4,9 · 124 ulasan */
+function Rating({ guide, className = '' }) {
+  const { t, num } = useI18n()
+  if (guide.rating == null) return null
+  return (
+    <span className={cn('inline-flex items-center gap-1', className)}>
+      <Star className="size-3.5 fill-sun-500 text-sun-500" strokeWidth={1.5} aria-hidden />
+      <span className="font-medium text-ink">{num(guide.rating, { minimumFractionDigits: 1 })}</span>
+      {guide.reviewCount != null && <span>· {t('guides.reviews', { n: guide.reviewCount })}</span>}
+    </span>
+  )
+}
 
 /** Status ketersediaan — titik kecil + teks, tanpa pill berwarna */
 function Availability({ available }) {
@@ -19,6 +35,7 @@ function Availability({ available }) {
 }
 
 function GuideCard({ guide: g, onOpen }) {
+  const { corridorBySlug } = useData()
   const { t, tr, num } = useI18n()
   return (
     <button
@@ -28,10 +45,11 @@ function GuideCard({ guide: g, onOpen }) {
     >
       {/* Identitas */}
       <div className="flex items-start gap-4 p-6 pb-5">
-        <Monogram name={g.name} />
+        <Monogram name={g.name} src={g.photo} />
         <div className="min-w-0 flex-1 pt-0.5">
           <p className="font-display text-[21px] leading-tight text-ink">{g.name}</p>
           <p className="mt-1 text-[13.5px] text-muted">{tr(g.role)}</p>
+          <Rating guide={g} className="mt-1.5 text-[12.5px] text-muted" />
         </div>
         <ArrowUpRight
           className="size-4.5 shrink-0 text-muted transition-[transform,color] duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-ink"
@@ -62,7 +80,7 @@ function GuideCard({ guide: g, onOpen }) {
       <dl className="flex-1 space-y-2.5 px-6 py-5 text-[13.5px] leading-snug">
         <div className="grid grid-cols-[84px_1fr] gap-3">
           <dt className="text-muted">{t('guides.specialties')}</dt>
-          <dd className="text-ink-soft">{g.specialties.map(tr).join(', ')}</dd>
+          <dd className="text-ink-soft">{(g.specialties.length ? g.specialties : g.focus).map(tr).join(', ')}</dd>
         </div>
         <div className="grid grid-cols-[84px_1fr] gap-3">
           <dt className="text-muted">{t('guides.corridors')}</dt>
@@ -74,7 +92,7 @@ function GuideCard({ guide: g, onOpen }) {
       <div className="flex items-center justify-between gap-3 border-t border-line px-6 py-4 text-[12.5px]">
         <span className="inline-flex items-center gap-1.5 font-mono text-[11.5px] text-moss-600">
           <BadgeCheck className="size-3.5" strokeWidth={1.75} />
-          {g.license}
+          {g.license ?? g.organization}
         </span>
         <Availability available={g.available} />
       </div>
@@ -83,7 +101,15 @@ function GuideCard({ guide: g, onOpen }) {
 }
 
 function GuideDrawer({ guide, onClose }) {
-  const { t, tr, num } = useI18n()
+  const { corridorBySlug, packages } = useData()
+  const { t, tr, num, dur } = useI18n()
+  const navigate = useNavigate()
+  // Lewat halaman pemandu, wisatawan memilih pemandu dulu lalu memilih paketnya.
+  // Pilihan disimpan bersama id pemandu agar otomatis batal saat drawer dibuka untuk pemandu lain.
+  const [pick, setPick] = useState(null)
+  const picked = pick && guide && pick.guideId === guide.id ? pick.slug : null
+  const options = guide ? packages.filter((p) => guide.corridors.includes(p.corridor)) : []
+  const firstName = guide?.name.split(' ')[0]
 
   useEffect(() => {
     if (!guide) return
@@ -113,7 +139,11 @@ function GuideDrawer({ guide, onClose }) {
             <div className="flex items-center justify-between border-b border-line px-6 py-4">
               <span className="inline-flex items-center gap-1.5 text-[12.5px] text-moss-600">
                 <BadgeCheck className="size-4" strokeWidth={1.75} />
-                {t('guides.verified')} · <span className="font-mono text-[11.5px]">{guide.license}</span>
+                {guide.license ? (
+                  <>{t('guides.verified')} · <span className="font-mono text-[11.5px]">{guide.license}</span></>
+                ) : (
+                  guide.organization
+                )}
               </span>
               <button type="button" onClick={onClose} className="grid size-9 place-items-center rounded-full hover:bg-ink/5" aria-label={t('guides.closeProfile')}>
                 <X className="size-5" />
@@ -123,10 +153,11 @@ function GuideDrawer({ guide, onClose }) {
             <div className="flex-1 overflow-y-auto">
               <div className="px-6 pb-6 pt-8">
                 <div className="flex items-center gap-5">
-                  <Monogram name={guide.name} size="lg" />
+                  <Monogram name={guide.name} src={guide.photo} size="lg" />
                   <div>
                     <h2 className="font-display text-[30px] leading-tight">{guide.name}</h2>
                     <p className="text-ink-soft">{tr(guide.role)}</p>
+                    <Rating guide={guide} className="mt-1 text-[13px] text-muted" />
                     <p className="mt-2 text-[13px]"><Availability available={guide.available} /></p>
                   </div>
                 </div>
@@ -150,16 +181,29 @@ function GuideDrawer({ guide, onClose }) {
                 </div>
               </dl>
 
-              <div className="px-6 py-7">
-                <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted">{t('guides.about')}</p>
-                <p className="mt-2.5 text-[15.5px] leading-relaxed">{tr(guide.bio)}</p>
-              </div>
+              {(guide.bio || guide.quote) && (
+                <div className="px-6 py-7">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted">{t('guides.about')}</p>
+                  {guide.bio && <p className="mt-2.5 text-[15.5px] leading-relaxed">{tr(guide.bio)}</p>}
+                  {guide.quote && (
+                    <blockquote className="mt-4 border-l-2 border-clay-500 pl-4 font-display text-[17px] italic leading-snug text-ink-soft">“{tr(guide.quote)}”</blockquote>
+                  )}
+                </div>
+              )}
 
               <dl className="mx-6 divide-y divide-line border-t border-line text-[14px]">
-                <div className="grid grid-cols-[120px_1fr] gap-4 py-4">
-                  <dt className="text-muted">{t('guides.specialties')}</dt>
-                  <dd>{guide.specialties.map(tr).join(', ')}</dd>
-                </div>
+                {guide.specialties.length > 0 && (
+                  <div className="grid grid-cols-[120px_1fr] gap-4 py-4">
+                    <dt className="text-muted">{t('guides.specialties')}</dt>
+                    <dd>{guide.specialties.map(tr).join(', ')}</dd>
+                  </div>
+                )}
+                {guide.suitableFor.length > 0 && (
+                  <div className="grid grid-cols-[120px_1fr] gap-4 py-4">
+                    <dt className="text-muted">{t('guides.suitableFor')}</dt>
+                    <dd>{guide.suitableFor.map(tr).join(', ')}</dd>
+                  </div>
+                )}
                 <div className="grid grid-cols-[120px_1fr] gap-4 py-4">
                   <dt className="text-muted">{t('guides.languages')}</dt>
                   <dd>{guide.languages.map((l) => t(`langNames.${l}`)).join(', ')}</dd>
@@ -195,12 +239,51 @@ function GuideDrawer({ guide, onClose }) {
                   </dd>
                 </div>
               </dl>
+
+              {guide.available && options.length > 0 && (
+                <div className="px-6 py-7">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted">{t('guides.pickTitle', { name: firstName })}</p>
+                  <p className="mt-1.5 text-[13px] text-ink-soft">{t('guides.pickNote')}</p>
+                  <ul className="mt-4 space-y-2" role="radiogroup" aria-label={t('guides.pickTitle', { name: firstName })}>
+                    {options.map((p) => {
+                      const c = corridorBySlug[p.corridor]
+                      const active = picked === p.slug
+                      return (
+                        <li key={p.slug}>
+                          <button
+                            type="button"
+                            role="radio"
+                            aria-checked={active}
+                            onClick={() => setPick({ guideId: guide.id, slug: p.slug })}
+                            className={cn('flex w-full items-center gap-3 rounded-2xl border p-2.5 pr-4 text-left transition-colors', active ? 'border-forest-900 bg-bone' : 'border-line-strong hover:border-ink/40')}
+                          >
+                            <img src={p.image ?? c.imageSm ?? c.image} alt="" loading="lazy" className="size-14 shrink-0 rounded-xl object-cover" />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[14.5px] font-medium">{tr(p.title)}</span>
+                              <span className="text-[12.5px] text-muted">{dur(p.days)} · {rupiah(p.price)}</span>
+                            </span>
+                            <span className={cn('grid size-5 shrink-0 place-items-center rounded-full border', active ? 'border-forest-900 bg-forest-900 text-paper' : 'border-line-strong')}>
+                              {active && <Check className="size-3" strokeWidth={2.5} />}
+                            </span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <div className="border-t border-line p-4">
-              <Button to={`/paket?koridor=${guide.corridors.join(',')}`} variant={guide.available ? 'primary' : 'outline'} size="lg" className="w-full">
-                {guide.available ? t('guides.cta', { name: guide.name.split(' ')[0] }) : t('guides.ctaFull')}
-              </Button>
+              {guide.available ? (
+                <Button variant="primary" size="lg" className="w-full" disabled={!picked} onClick={() => navigate(`/pesan/${picked}?pemandu=${guide.id}`)}>
+                  {picked ? t('guides.bookWith', { name: firstName }) : t('guides.pickFirst')}
+                </Button>
+              ) : (
+                <Button to={`/paket?koridor=${guide.corridors.join(',')}`} variant="outline" size="lg" className="w-full">
+                  {t('guides.ctaFull')}
+                </Button>
+              )}
             </div>
           </>
         )}
@@ -210,12 +293,15 @@ function GuideDrawer({ guide, onClose }) {
 }
 
 export default function Guides() {
+  const { guides, guideById, allLanguages, corridors } = useData()
   const { t, tr } = useI18n()
+  const [params] = useSearchParams()
   const [q, setQ] = useState('')
   const [corridor, setCorridor] = useState('')
   const [lang, setLang] = useState('')
   const [onlyAvailable, setOnlyAvailable] = useState(false)
-  const [open, setOpen] = useState(null)
+  // ?pemandu=g-xx (mis. dari tautan "ganti paket" di checkout) langsung membuka profilnya
+  const [open, setOpen] = useState(() => guideById[params.get('pemandu')] ?? null)
   const close = useCallback(() => setOpen(null), [])
 
   const list = useMemo(() => {
@@ -224,7 +310,7 @@ export default function Guides() {
       (g) =>
         // pencarian mencakup teks ID & EN agar "gajah" maupun "elephant" sama-sama ketemu
         (!term ||
-          [g.name, g.role.id, g.role.en, ...g.specialties.flatMap((s) => (typeof s === 'string' ? [s] : [s.id, s.en]))]
+          [g.name, g.organization, ...allText(g.role), ...g.focus, ...g.specialties.flatMap(allText)]
             .join(' ')
             .toLowerCase()
             .includes(term)) &&
@@ -232,7 +318,7 @@ export default function Guides() {
         (!lang || g.languages.includes(lang)) &&
         (!onlyAvailable || g.available),
     )
-  }, [q, corridor, lang, onlyAvailable])
+  }, [guides, q, corridor, lang, onlyAvailable])
 
   const reset = () => {
     setQ('')

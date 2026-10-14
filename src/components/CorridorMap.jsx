@@ -1,4 +1,4 @@
-import { corridors } from '../data/corridors'
+import { useData } from '../data'
 import { cn } from '../lib/format'
 import { useI18n } from '../i18n'
 
@@ -8,6 +8,7 @@ import { useI18n } from '../i18n'
  * TN Gunung Leuser di barat daya, Medan di tenggara.
  */
 export default function CorridorMap({ active, onSelect, tone = 'dark', className = '', compact = false }) {
+  const { corridors } = useData()
   const { t, tr } = useI18n()
   const dark = tone === 'dark'
   const stroke = dark ? 'rgb(243 238 228 / 0.16)' : 'rgb(22 26 20 / 0.14)'

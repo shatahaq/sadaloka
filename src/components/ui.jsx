@@ -112,11 +112,21 @@ export function DifficultyBars({ level, className = '' }) {
 }
 
 /**
- * Monogram pemandu — netral & tipografis, dipakai sampai foto resmi tersedia.
+ * Avatar pemandu: foto resmi bila ada (`src`), selain itu monogram netral & tipografis.
  * Sengaja tanpa warna acak agar tidak terasa seperti avatar generik.
  */
-export function Monogram({ name, size = 'md', tone = 'light', className = '' }) {
+export function Monogram({ name, src, size = 'md', tone = 'light', className = '' }) {
   const sz = { sm: 'size-10 text-[15px]', md: 'size-14 text-[20px]', lg: 'size-20 text-[28px]' }[size]
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        className={cn('shrink-0 rounded-full object-cover object-top', tone === 'dark' ? 'ring-1 ring-line-dark' : 'ring-1 ring-line-strong', sz, className)}
+      />
+    )
+  }
   return (
     <span
       className={cn(
